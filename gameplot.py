@@ -5,13 +5,13 @@ import matplotlib.animation as animation
 from mayavi import mlab
 import itertools
 syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-datapath, figpath = 'data', 'fig'
+figpath = 'fig'
 
 
 class GamePlot:
     def __init__(self, Ns, Ni, Na, gamma, ua, Ta, iter_per_frame):
         self.Ns, self.Ni, self.Na, self.gamma, self.ua, self.Ta = Ns, Ni, Na, gamma, ua, Ta
-        record = np.loadtxt(f'{datapath}/record.csv', delimiter=',')
+        record = np.loadtxt('data/record.csv', delimiter=',')
         num = record.shape[0]
         frames = np.arange(num)[::iter_per_frame]
         frame_num = frames.shape[0]
@@ -224,14 +224,14 @@ class GamePlot:
     def curve_plot(self, fig, item=[0, 1, 2]):
         label = [[r'$\|V_s^i-D_\pi(V_s^i)\|_\infty$', r'$\tan\measuredangle (V_s^i-D_\pi(V_s^i),\mathbf{1}_s^i)$'],
                  [r'$\|\pi_a^{si}-\hat{\pi}_a^{si}\|_\infty$', r'$\|r_a^{si}-\hat{r}_a^{si}\|_\infty$'],
-                 [r'$\|\mu_a^{si}\|_\infty$', r'$\|\mu_a^{si}-\hat{\beta}^{si}\circ\pi_a^{si}\|_\infty$']]
+                 [r'$\|\mu_a^{si}\|_\infty$', r'$\|\mu_a^{si}-(\mathbf{1}_a\mu_a^{si})\circ\pi_a^{si}\|_\infty$']]
         axes = fig.subplots(len(item), 1) if len(item) > 1 else [fig.subplots(len(item), 1)]
         [(axes[m].sharex(axes[-1]), axes[m].tick_params('x', labelbottom=False)) for m in range(len(item)-1)]
         axes[-1].set(xlabel='Iterations')
         plots = [[self._curve_plot(ax, self.curve_plot_data[item[m]][n], n, label[item[m]][n]) for n, ax in enumerate([axes[m], axes[m].twinx()])] for m in range(len(item))]
         return axes
 
-    def centralmani_data(self, ustatic, barr):
+    def centralvari_data(self, ustatic, barr):
         def get_surf(p1, p2):
             u1 = -(p2*ustatic[:, 0, 0, :, 0, np.newaxis, np.newaxis]+(1-p2)*ustatic[:, 0, 1, :, 0, np.newaxis, np.newaxis])+(p2*ustatic[:, 1, 0, :, 0, np.newaxis, np.newaxis]+(1-p2)*ustatic[:, 1, 1, :, 0, np.newaxis, np.newaxis])
             u2 = -(p1*ustatic[:, 0, 0, :, 1, np.newaxis, np.newaxis]+(1-p1)*ustatic[:, 1, 0, :, 1, np.newaxis, np.newaxis])+(p1*ustatic[:, 0, 1, :, 1, np.newaxis, np.newaxis]+(1-p1)*ustatic[:, 1, 1, :, 1, np.newaxis, np.newaxis])
@@ -252,7 +252,7 @@ class GamePlot:
         index1 = [deno2 > 0, deno2 < 0]
         return pmesh, hs, index0, index1
 
-    def centralmani_plot(self, fig, axes):
+    def centralvari_plot(self, fig, axes):
         Ns, Ni = axes.shape[0], self.Ni
         # mlab.options.offscreen = True
         fig_3d, hypersurfs = [None for s in range(Ns)], [None for s in range(Ns)]
@@ -266,7 +266,7 @@ class GamePlot:
             fig_3d[s].scene.background = (1, 1, 1)
             fig_3d[s].scene.foreground = (0, 0, 0)
             fig_3d[s].scene._tool_bar.setVisible(False)
-            mlab.view((1-2*s)*45.0, 70.0, 3.4, figure=fig_3d[s])
+            mlab.view((1-2*s)*45.0, 70.0, 3.5, figure=fig_3d[s])
         for s, i, a0, a1 in itertools.product(range(Ns), range(Ni), range(2), range(2)):
             hypersurfs[s][i][a0][a1].module_manager.scalar_lut_manager.reverse_lut = True
             hypersurfs[s][i][a0][a1].enable_contours = True
@@ -274,14 +274,14 @@ class GamePlot:
         [axes[s].set_axis_off() for s in range(Ns)]
         return fig_3d, hypersurfs, axes
 
-    def centralmani_update(self, k, data, plots, onlinecal=False):
+    def centralvari_update(self, k, data, plots, onlinecal=False):
         fig_3d, hypersurfs, axes = plots
         Ns, Ni = len(hypersurfs), self.Ni
         if not onlinecal:
             pmesh, hs, index0, index1 = data
         else:
             ustatic, barr = data
-            pmesh, hs, index0, index1 = self.centralmani_data(ustatic[[k], ...], barr[[k], ...])
+            pmesh, hs, index0, index1 = self.centralvari_data(ustatic[[k], ...], barr[[k], ...])
             k = 0
         p0, p1 = [item[k] for item in index0], [item[k] for item in index1]
         [hypersurfs[s][i][a0][a1].mlab_source.trait_set(x=pmesh[0][p0[a0][s]][:, p1[a1][s]], y=pmesh[1][p0[a0][s]][:, p1[a1][s]], scalars=hs[i, k, s][p0[a0][s]][:, p1[a1][s]]) for s, i, a0, a1 in itertools.product(range(Ns), range(Ni), range(2), range(2))]
@@ -292,7 +292,7 @@ class GamePlot:
             self.cone_update(k, *cone_data_plots)
             self.barrproblem_update(k, *barrproblem_data_plots)
             self.kktcondition_update(k, *kktcondition_data_plots)
-            self.centralmani_update(k, *centralmani_data_plots, onlinecal=True)
+            self.centralvari_update(k, *centralvari_data_plots, onlinecal=True)
             [index_plot[m].set_data([frames[k], frames[k]], curvelim[m]) for m in range(3)]
             print(k)
         barr, policy, regret, value = self.barr, self.policy, self.regret, self.value
@@ -311,13 +311,13 @@ class GamePlot:
         cone_data_plots = self.cone_data(policy, value), self.cone_plots(plot2dfig, axes2d[:, 0], 'outside lower left', 2)
         barrproblem_data_plots = self.barrproblem_data(barr, policy, regret), self.barrproblem_plots(plot2dfig, axes2d[:, [1, 2]], 'outside lower center', 3)
         kktcondition_data_plots = self.kktcondition_data(ustatic, barr, policy), self.kktcondition_plots(plot2dfig, axes2d[:, 3], 'outside lower right', 1)
-        centralmani_data_plots = (ustatic, barr), self.centralmani_plot(fig, axes3d)
-        plt.savefig(f'{fig}/x.png', dpi=400)
+        centralvari_data_plots = (ustatic, barr), self.centralvari_plot(fig, axes3d)
+        plt.savefig(f'{figpath}/x.png', dpi=400)
         # for k in range(frame_num):
         #     _anim(k)
-        #     plt.savefig(f'{fig}/{frames[k]}.png', dpi=400)
-        ani = animation.FuncAnimation(fig, _anim, init_func=lambda: None, repeat=True, frames=frame_num)
-        ani.save(f'{fig}/anim.mov', fps=60, dpi=300, writer='ffmpeg')
+        #     plt.savefig(f'anim/{frames[k]}.png', dpi=400)
+        # ani = animation.FuncAnimation(fig, _anim, init_func=lambda: None, repeat=True, frames=frame_num)
+        # ani.save('fig/anim.mov', fps=60, dpi=300, writer='ffmpeg')
         mlab.close(all=True)
 
     def anim(self):
@@ -342,9 +342,9 @@ class GamePlot:
         cone_data_plots = self.cone_data(policy, value), self.cone_plots(plotfig, axes[:, 0], 'outside lower left', 2)
         barrproblem_data_plots = self.barrproblem_data(barr, policy, regret), self.barrproblem_plots(plotfig, axes[:, [1, 2]], 'outside lower center', 3)
         kktcondition_data_plots = self.kktcondition_data(ustatic, barr, policy), self.kktcondition_plots(plotfig, axes[:, 3], 'outside lower right', 1)
-        plt.savefig(f'{fig}/x.png')
+        plt.savefig(f'{figpath}/x.png')
         ani = animation.FuncAnimation(fig, _anim, init_func=lambda: None, repeat=True, frames=frame_num)
-        ani.save(f'{fig}/anim.mov', fps=60, dpi=300, writer='ffmpeg')
+        ani.save(f'{figpath}/anim.mov', fps=60, dpi=300, writer='ffmpeg')
 
     def graph(self):
         ustatic = np.array([[[[1e-1, 0]], [[1, 9]]], [[[0, 9]], [[0, 0]]]])
@@ -356,25 +356,25 @@ class GamePlot:
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(6.4, 3.7))
         cone_data_plots = self.cone_data(policy[np.newaxis, ...], value[np.newaxis, ...]), self.cone_plots(fig, axes, 'outside lower center', 5, plot_traj=False)
         self.cone_update(0, *cone_data_plots)
-        plt.savefig(f'{fig}/cone.eps', dpi=300, format='eps')
+        plt.savefig(f'{figpath}/cone.eps', dpi=300, format='eps')
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(6.4, 3.7))
         barrproblem_data_plots = self.barrproblem_data(barr[np.newaxis, [0], ...], policy[np.newaxis, [0], :, :], regret[np.newaxis, ...]), self.barrproblem_plots(fig, axes[np.newaxis, :], 'outside lower center', 4, plot_traj=False)
         self.barrproblem_update(0, *barrproblem_data_plots)
-        plt.savefig(f'{fig}/barrproblem.eps', dpi=300, format='eps')
+        plt.savefig(f'{figpath}/barrproblem.eps', dpi=300, format='eps')
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(6.4, 3.7))
         kktcondition_data_plots = self.kktcondition_data(ustatic[np.newaxis, ...][[0, 0]][..., [0, 0], :], barr[np.newaxis, ...][[0, 0]], np.array([policy, insec_policy])), self.kktcondition_plots(fig, axes, 'outside lower center', 4, plot_traj=False)
         self.kktcondition_update(0, *kktcondition_data_plots)
-        plt.savefig(f'{fig}/kktcondition.eps', dpi=300, format='eps')
+        plt.savefig(f'{figpath}/kktcondition.eps', dpi=300, format='eps')
 
         self.curve_plot(plt.figure(layout='compressed', figsize=(8, 6)))
-        plt.savefig(f'{fig}/iter_curve.eps', dpi=300, format='eps')
+        plt.savefig(f'{figpath}/iter_curve.eps', dpi=300, format='eps')
 
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(8, 4))
         ustatic = np.array([[[[1e-1, 0]], [[1, 1]]], [[[0, 5]], [[0, 0]]]])
         barr = np.array([[[1, 1], [1, 1]]])
-        centralmani_data_plots = self.centralmani_data(ustatic[np.newaxis, ...], barr[np.newaxis, ...]), self.centralmani_plot(fig, axes[[0]])
-        self.centralmani_update(0, *centralmani_data_plots)
-        mlab.view(0.0, 90.0, 2.9)
+        centralvari_data_plots = self.centralvari_data(ustatic[np.newaxis, ...], barr[np.newaxis, ...]), self.centralvari_plot(fig, axes[[0]])
+        self.centralvari_update(0, *centralvari_data_plots)
+        mlab.view(0.0, 90.0, 3.0)
         axes[1].imshow(mlab.screenshot())
         axes[1].set_axis_off()
-        plt.savefig(f'{fig}/centralmani.eps', dpi=300, format='eps')
+        plt.savefig(f'{figpath}/centralvari.eps', dpi=300, format='eps')
