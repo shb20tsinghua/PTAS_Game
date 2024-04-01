@@ -24,7 +24,7 @@ def test(args):
 def plottest(seed):
     np.random.seed(seed)
     ua, Ta = np.random.rand(*((Na,)*Ni+(Ns, Ni)))-0.5, np.random.dirichlet(np.ones(Ns), size=(Na,)*Ni+(Ns,))
-    gp = GamePlot(Ns, Ni, Na, gamma, ua, Ta, 60)
+    gp = GamePlot(Ns, Ni, Na, gamma, ua, Ta, 27)
     gp.anim()
     gp.graph()
 
@@ -33,8 +33,8 @@ Ns, Ni, Na = 2, 2, 2
 gamma = 0.5
 if __name__ == '__main__':
     open(fresult, 'w'), open(frecord, 'w')
-    if multiprocess_test := True:
-        seed = 140
+    if multiprocess_test := False:
+        seed = 141
         test(seed)
         if Ns == 2 and Ni == 2 and Na == 2:
             plottest(seed)
@@ -42,5 +42,5 @@ if __name__ == '__main__':
         # with open('data/result0.log', 'r') as fio:
         #     records = fio.readlines()
         # tests = [(int(record[1:5]), [np.fromstring(record[record.find(f'|{mark}')+3:record.find(f'{mark}|')-1], sep=',') for mark in ['b', 'p', 'v']]) for record in records]
-        with Pool(processes=4) as pool:
-            pool.map(test, xxx, chunksize=1)
+        with Pool(processes=8) as pool:
+            pool.map(test, range(2000), chunksize=1)
