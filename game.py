@@ -88,24 +88,3 @@ class Game:
         diff = np.linalg.solve(comat, np.vstack([np.eye(Ni*Na), np.zeros((Ni, Ni*Na))])[np.newaxis, ...])[..., :Ni*Na, :].reshape((Ns, Ni, Na, Ni, Na))
         return diff
 
-
-def test(seed):
-    gamma = 0.5
-    Ns, Ni, Na = 2, 2, 2
-    np.random.seed(seed)
-    ua, Ta = np.random.rand(*((Na,)*Ni+(Ns, Ni)))-0.5, np.random.dirichlet(np.ones(Ns), size=(Na,)*Ni+(Ns,))
-    result, success, nit, record = Game(Ns, Ni, Na, gamma, ua, Ta).solve(np.ones((Ns, Ni, Na)), np.ones((Ns, Ni, Na))/Na, np.ones((Ns, Ni))*ua.max()/(1-gamma))
-    resultstr = f"|{seed:^4d}|{nit:^7d}|{repr(success):5}|{'|'.join([arr2str(item) for item in record])}|\n"
-    print(resultstr)
-    with open(fresult, 'a') as fio:
-        fio.writelines(resultstr)
-
-
-fresult, frecord, logrecord = 'data/result.log', 'data/record.log', 'data/record.csv'
-if __name__ == '__main__':
-    open(fresult, 'w'), open(frecord, 'w')
-    if True:
-        test(0)
-    else:
-        with Pool(processes=8) as pool:
-            pool.map(test, range(2000), chunksize=1)
