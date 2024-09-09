@@ -49,7 +49,7 @@ class Game:
                             return (barr, policy, value), True, nit, record_list
                     else:
                         beta += Game.beta
-                        barr, policy, value, piU_jac = bpv_bkp
+                        barr, policy, value, piU_jac, cano_sect = bpv_bkp
                     break
                 policy = normalize(np.exp(np.log(policy)-dpolicy), normalizer=np.sum, axis=-1)
                 value += 1e-1*dp_res
@@ -57,7 +57,7 @@ class Game:
             diff = self.along_equilbundl(barr, policy, piU_jac)
             barr_next = (1-Game.eta)*cano_sect+beta*policy
 
-            bpv_bkp = barr.copy(), policy.copy(), value.copy(), piU_jac.copy()
+            bpv_bkp = barr.copy(), policy.copy(), value.copy(), piU_jac.copy(), cano_sect.copy()
             recstr = f"|{nit:^7d}|{'|'.join([arr2str(item) for item in record_list])}|\n"
             with open(frecord, 'a') as fio:
                 fio.writelines(recstr)
