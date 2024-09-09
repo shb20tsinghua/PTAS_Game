@@ -6,6 +6,7 @@ from multiprocessing import Pool
 np.seterr(divide='ignore')
 def arr2str(arr, sign='+', rep=False, preci=3): return np.array2string(arr, separator=',', formatter={'all': lambda x: f'{x:{sign}.{preci}e}'}).replace('\n', '').replace(' ', '') if not rep else np.array_repr(arr).replace('\n', '').replace(' ', '')
 def normalize(vec, normalizer, axis): return vec/normalizer(vec, axis=axis, keepdims=True)
+fresult, frecord, logrecord = 'data/result.log', 'data/record.log', 'data/record.csv'
 
 
 class Game:
