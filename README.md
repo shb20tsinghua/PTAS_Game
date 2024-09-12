@@ -1,4 +1,4 @@
 # PTAS_Game
 
-<video src="anim.mov" controls="controls" width="500" height="300"></video>
+<video src="anim.mp4" controls="controls" width="500" height="300"></video>
 
