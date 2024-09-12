@@ -1,3 +1,3 @@
 # PTAS_Game
 
-<video src="fig.mov"></video>
+<video src="fig/anim.mov"></video>
