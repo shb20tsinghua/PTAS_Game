@@ -1,4 +1,6 @@
 # PTAS_Game
 
-<video src="anim.mp4" controls="controls" width="500" height="300"></video>
+Plots of the dynamic game instance generated with random seed 0.
+
+![](anim.gif)
 
