@@ -2,5 +2,5 @@
 
 Plots of the dynamic game instance generated with random seed 0.
 
-![](anim.gif)
+![](fig/anim.gif)
 
