@@ -8,6 +8,17 @@ preci = 3
 def arr2str(arr): return np.array2string(arr, separator=',', formatter={'all': lambda x: f'{x:.{preci}e}'}).replace('\n', '').replace(' ', '')
 
 
+def test_static(seed):
+    np.random.seed(seed)
+    ua = (np.random.rand(*((Na,)*Ni+(Ni,)))-0.5)[..., np.newaxis, :]
+    Ns = 1
+    gamma = 0
+    Ta = np.ones((Na,)*Ni+(1, 1))
+    result, success, nit, record, record_csv = Game(Ns, Ni, Na, gamma, ua, Ta).solve(np.ones((Ns, Ni, Na)), np.ones((Ns, Ni, Na))/Na, np.ones((Ns, Ni))*ua.max()/(1-gamma), frecord, verbose=1)
+    with open(fresult, 'a') as fio:
+        fio.writelines(f"|{seed:^4d}|{repr(success):7}|{nit:^7d}|{'|'.join([arr2str(item) for item in record])}|\n")
+
+
 def test(seed):
     np.random.seed(seed)
     ua, Ta = np.random.rand(*((Na,)*Ni+(Ns, Ni)))-0.5, np.random.dirichlet(np.ones(Ns), size=(Na,)*Ni+(Ns,))
@@ -40,4 +51,4 @@ if __name__ == '__main__':
             plottest(seed)
     else:
         with Pool(processes=8) as pool:
-            pool.map(test, range(8), chunksize=1)
+            pool.map(test, np.random.randint(2000, size=8), chunksize=1)
