@@ -1,7 +1,7 @@
 # PTAS_Game
 
 Animated line search process of the 2-state 2-player 2-action dynamic game instance generated with random seed 1.
-The parallel line search of 6 initial policies find all the four perfect equilibria of this dynamic game.
+The parallel line search of 6 initial policies find all the 4 perfect equilibria of this dynamic game.
 
 ![](fig/anim0.gif)
 ![](fig/anim1.gif)
