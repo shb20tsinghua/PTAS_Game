@@ -7,14 +7,14 @@ import matplotlib.animation as animation
 class GamePlot:
     syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
-    def __init__(self, Ns, Ni, Na, gamma, ua, Ta, iter_per_frame):
-        self.Ns, self.Ni, self.Na, self.gamma, self.ua, self.Ta = Ns, Ni, Na, gamma, ua, Ta
+    def __init__(self, Ns, Ni, Na, gamma, ua, Ta, Nn, nNn, iter_per_frame):
+        self.nNn, self.Ns, self.Ni, self.Na, self.gamma, self.ua, self.Ta = nNn, Ns, Ni, Na, gamma, ua, Ta
         record = np.loadtxt('data/record.csv', delimiter=',')
         num = record.shape[0]
         frames = np.arange(num)[::iter_per_frame]
         frame_num = frames.shape[0]
         print(num, frame_num)
-        barr_f, policy_f, regret_f, value_f = (lambda rec: (rec[:, :, :Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, Ni*Na:2*Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, 2*Ni*Na:3*Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, -Ni:]))(record.reshape((num, Ns, Ni+3*Ni*Na)))
+        barr_f, policy_f, regret_f, value_f = (lambda rec: (rec[:, :, :Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, Ni*Na:2*Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, 2*Ni*Na:3*Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, -Ni:]))(record.reshape((num, Nn, Ns, Ni+3*Ni*Na))[:, nNn, ...])
         self.curve_plot_data = self.curve_data(barr_f, policy_f, regret_f, value_f)
         self.barr, self.policy, self.regret, self.value = barr_f[frames], policy_f[frames], regret_f[frames], value_f[frames]
         self.num, self.frames, self.frame_num = num, frames, frame_num
@@ -96,7 +96,7 @@ class GamePlot:
         [DV_plot[i].set_data(*DV[k, :, i, np.newaxis]) for i in range(Ni)]
 
     def barrproblem_data(self, barr, policy, regret):
-        self.baxlim = (regret[barr[:,0,0,0]<barr[0,0,0,0]] if regret.shape[0]>1 else regret).max(axis=(0, 2, 3))*1.1
+        self.baxlim = (regret[barr[:, 0, 0, 0] < barr[0, 0, 0, 0]] if regret.shape[0] > 1 else regret).max(axis=(0, 2, 3))*1.1
         barr_uni, barr_invindex = np.unique(barr, return_inverse=True, axis=0)
         brange = np.exp(np.linspace(np.log(barr_uni), np.log(self.baxlim[np.newaxis, :, np.newaxis, np.newaxis]), 100, axis=-1))
         barr_hyperb = np.array([-brange, barr_uni[..., np.newaxis]/brange])
@@ -251,7 +251,7 @@ class GamePlot:
         kktcondition_data_plots = self.kktcondition_data(ustatic, barr, policy), self.kktcondition_plots(plotfig, axes[:, 3], 'outside lower right', 1)
         plt.savefig('fig/x.png')
         ani = animation.FuncAnimation(fig, _anim, init_func=lambda: None, repeat=True, frames=frame_num)
-        ani.save('fig/anim.gif', fps=60, dpi=300, writer='ffmpeg')
+        ani.save(f'fig/anim{self.nNn}.gif', fps=60, dpi=200, writer='ffmpeg')
 
     def graph(self):
         ustatic = np.array([[[[1e-1, 0]], [[1, 9]]], [[[0, 9]], [[0, 0]]]])
