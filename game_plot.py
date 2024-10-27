@@ -1,11 +1,10 @@
 import numpy as np
-from numpy.linalg import norm
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 
 class GamePlot:
-    syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
     def __init__(self, Ns, Ni, Na, gamma, ua, Ta, Nn, nNn, iter_per_frame):
         self.nNn, self.Ns, self.Ni, self.Na, self.gamma, self.ua, self.Ta = nNn, Ns, Ni, Na, gamma, ua, Ta
@@ -23,11 +22,11 @@ class GamePlot:
     def _get_cone_data(self, policy, value):
         Ns, Ni, Na, gamma, ua, Ta = self.Ns, self.Ni, self.Na, self.gamma, self.ua, self.Ta
         policy_ = np.einsum('nsia->insa', policy)
-        upi = np.einsum(f"{GamePlot.syms[:Ni]}si,{','.join([f'ns{s}' for s in GamePlot.syms[:Ni]])}->nsi", ua, *policy_)
-        I_gammaTpi = np.eye(Ns)-gamma*np.einsum(f"{GamePlot.syms[:Ni]}sx,{','.join([f'ns{s}' for s in GamePlot.syms[:Ni]])}->nsx", Ta, *policy_)
+        upi = np.einsum(f"{syms[:Ni]}si,{','.join([f'ns{s}' for s in syms[:Ni]])}->nsi", ua, *policy_)
+        I_gammaTpi = np.eye(Ns)-gamma*np.einsum(f"{syms[:Ni]}sx,{','.join([f'ns{s}' for s in syms[:Ni]])}->nsx", Ta, *policy_)
         res = -upi+np.einsum('nsx,nxi->nsi', I_gammaTpi, value)
-        upi_ = np.array([np.einsum(f"{GamePlot.syms[:Ni]}s,{','.join([f'ns{k}' for k in GamePlot.syms[:Ni].replace(GamePlot.syms[i], '')])}->ns{GamePlot.syms[i]}", ua[..., i], *policy_[np.arange(Ni) != i]) for i in range(Ni)]).swapaxes(0, 1).swapaxes(1, 2)
-        I_gammaTpi_ = np.array([np.eye(Ns)-gamma*np.einsum(f"{GamePlot.syms[:Ni]}sx,{','.join([f'ns{s}' for s in GamePlot.syms[:Ni].replace(GamePlot.syms[i], '')])}->n{GamePlot.syms[i]}sx", Ta, *policy_[np.arange(Ni) != i]) for i in range(Ni)]).swapaxes(0, 1)
+        upi_ = np.array([np.einsum(f"{syms[:Ni]}s,{','.join([f'ns{k}' for k in syms[:Ni].replace(syms[i], '')])}->ns{syms[i]}", ua[..., i], *policy_[np.arange(Ni) != i]) for i in range(Ni)]).swapaxes(0, 1).swapaxes(1, 2)
+        I_gammaTpi_ = np.array([np.eye(Ns)-gamma*np.einsum(f"{syms[:Ni]}sx,{','.join([f'ns{s}' for s in syms[:Ni].replace(syms[i], '')])}->n{syms[i]}sx", Ta, *policy_[np.arange(Ni) != i]) for i in range(Ni)]).swapaxes(0, 1)
         resb = -upi_+np.einsum('niasx,nxi->nsia', I_gammaTpi_, value)
         return upi, I_gammaTpi, res, upi_, I_gammaTpi_, resb
 
@@ -146,7 +145,7 @@ class GamePlot:
             return np.array([hs1, hs2])
 
         def tangent_vector(ustatic, barr,  policy, num):
-            piU_jac = (lambda policy_: np.block([[np.einsum(f"n{GamePlot.syms[:Ni]}s{''.join([f',ns{k}' for k in GamePlot.syms[:Ni].replace(GamePlot.syms[i], '').replace(GamePlot.syms[j], '')])}->ns{GamePlot.syms[i]}{GamePlot.syms[j]}", ustatic[..., i], *policy_[(np.arange(Ni) != i) & (np.arange(Ni) != j)]) if j != i else np.zeros((num, Ns, Na, Na)) for j in range(Ni)] for i in range(Ni)]))(policy.swapaxes(1, 2).swapaxes(0, 1))
+            piU_jac = (lambda policy_: np.block([[np.einsum(f"n{syms[:Ni]}s{''.join([f',ns{k}' for k in syms[:Ni].replace(syms[i], '').replace(syms[j], '')])}->ns{syms[i]}{syms[j]}", ustatic[..., i], *policy_[(np.arange(Ni) != i) & (np.arange(Ni) != j)]) if j != i else np.zeros((num, Ns, Na, Na)) for j in range(Ni)] for i in range(Ni)]))(policy.swapaxes(1, 2).swapaxes(0, 1))
             comat1, comat2 = (lambda policy_: (np.eye(Ni*Na)*barr.reshape((num, Ns, Ni*Na))[..., np.newaxis, :]-piU_jac*policy_[..., np.newaxis, :]*policy_[..., :, np.newaxis], np.kron(np.eye(Ni), np.ones(Na))*policy_[..., np.newaxis, :]))(policy.reshape((num, Ns, Ni*Na)))
             comat = np.block([[comat1, comat2.swapaxes(-1, -2)], [comat2, np.zeros((num, Ns, Ni, Ni))]])
             exptan = np.linalg.solve(comat, np.hstack([np.eye(Ni*Na), np.zeros((Ni*Na, Ni))]).T[np.newaxis, np.newaxis, ...])[..., :Ni*Na, :].reshape((num, Ns, Ni, Na, Ni, Na))
@@ -208,6 +207,7 @@ class GamePlot:
         return plot_handle
 
     def curve_data(self, barr, policy, regret, value):
+        norm = np.linalg.norm
         upi, I_gammaTpi, res, upi_, I_gammaTpi_, resb = self._get_cone_data(policy, value)
         res_norm, res_direc = norm(res, np.inf, axis=1).max(axis=1), (self.Ns*norm(res, axis=1)**2/np.sum(res, axis=1)**2-1).clip(min=0).max(axis=1)**0.5
         dual_policy, dual_regret = barr/regret, barr/policy
