@@ -47,7 +47,10 @@ class GamePlot:
         V_DVdirec = np.array([value, cone_Y[:, [0, 1], [0, 1], :]]).swapaxes(0, 2)
         DVdirec_Y = np.array([cone_Y[:, [0, 1], [0, 1], np.newaxis, :][:, :, [0, 0], :], cone_Y]).swapaxes(0, 2)
         DV = value-res
-        return apex, apexb, vrange, apex_index, apexb_index, cone_hyperp, coneb_hyperp, cone_Y, coneb_Y, value, V_DVdirec, DVdirec_Y, DV
+        V_DhatVdirec = np.array([value, coneb_Y[:, [0, 1], [0, 1], :]]).swapaxes(0, 2)
+        DhatVdirec_Yhat = np.array([coneb_Y[:, [0, 1], [0, 1], np.newaxis, :][:, :, [0, 0], :], coneb_Y]).swapaxes(0, 2)
+        DhatV = value-resb.min(axis=-1)
+        return apex, apexb, vrange, apex_index, apexb_index, cone_hyperp, coneb_hyperp, cone_Y, coneb_Y, value, V_DVdirec, DVdirec_Y, DV, V_DhatVdirec, DhatVdirec_Yhat, DhatV
 
     def cone_plots(self, fig, axes, legend_loc, legend_ncol, plot_traj=True):
         Ns, Ni, Na = self.Ns, self.Ni, self.Na
@@ -62,24 +65,27 @@ class GamePlot:
         cone_hyperp_plot = [[axes[i].plot([], [], 'r--', linewidth=0.8)[0] for i in range(Ni)] for s in range(Ns)]
         coneb_hyperp_plot = [[[axes[i].plot([], [], 'g:', linewidth=0.8)[0] for a in range(Na)] for i in range(Ni)] for s in range(Ns)]
         cone_plot = [[axes[i].plot([], [], 'r', linewidth=1.5, label=r'$C_\pi$')[0] for i in range(Ni)] for s in range(Ns)]
-        coneb_plot = [[axes[i].plot([], [], 'g--', linewidth=1.5, label=r'$C_\pi^b$')[0] for i in range(Ni)] for s in range(Ns)]
+        coneb_plot = [[axes[i].plot([], [], 'g--', linewidth=1.5, label=r'$\hat{C}_\pi$')[0] for i in range(Ni)] for s in range(Ns)]
         cone_Y_plot = [[axes[i].plot([], [], 'rv', label=r'$Y_{xs}^i$')[0] for i in range(Ni)] for s in range(Ns)]
-        coneb_Y_plot = [[axes[i].plot([], [], 'g^', label=r'$\tilde{Y}_{xs}^i$')[0] for i in range(Ni)] for s in range(Ns)]
-        onevec_plot = [axes[i].plot([], [], 'k', linewidth=1.0, label=r'$\mathbf{1}_s^i$')[0] for i in range(Ni)]
+        coneb_Y_plot = [[axes[i].plot([], [], 'g^', label=r'$\hat{Y}_{xs}^i$')[0] for i in range(Ni)] for s in range(Ns)]
+        onevec_plot = [axes[i].plot([], [], 'k', linewidth=1.0, label=r'$\mathbf{1}_s$')[0] for i in range(Ni)]
         coneb_apex_plot = [axes[i].plot([], [], 'C7.')[0] for i in range(Ni)]
         cone_apex_plot = [axes[i].plot([], [], 'b.', label=r'$V_{\pi s}^i$')[0] for i in range(Ni)]
         value_plot = [axes[i].plot([], [], 'ks', label=r'$V_s^i$')[0] for i in range(Ni)]
-        V_Y_plot = [[axes[i].plot([], [], 'b:', linewidth=1.0)[0] for i in range(Ni)] for s in range(Ns)]
         V_DVdirec_plot = [axes[i].plot([], [], 'y', linewidth=1.0, label=r'$d_s^i$')[0] for i in range(Ni)]
         DVdirec_Y_plot = [[axes[i].plot([], [], 'b:', linewidth=1.0)[0] for i in range(Ni)] for s in range(Ns)]
-        DV_plot = [axes[i].plot([], [], 'k*', label=r'$D_\pi(V_s^i)$')[0] for i in range(Ni)]
-        fig.legend(handles=[coneb_plot[0][0], cone_plot[0][0], cone_Y_plot[0][0], coneb_Y_plot[0][0], cone_apex_plot[0], value_plot[0], V_DVdirec_plot[0], DV_plot[0], onevec_plot[0]], loc=legend_loc, ncol=legend_ncol)
-        return cone_hyperp_plot, coneb_hyperp_plot, cone_plot, coneb_plot, cone_Y_plot, coneb_Y_plot, cone_apex_plot, coneb_apex_plot, value_plot, onevec_plot, V_DVdirec_plot, DVdirec_Y_plot, DV_plot
+        DV_plot = [axes[i].plot([], [], 'r*', label=r'$D_\pi(V_s^i)$')[0] for i in range(Ni)]
+        V_DhatVdirec_plot = [axes[i].plot([], [], 'y--', linewidth=1.0, label=r'$\hat{d}_s^i$')[0] for i in range(Ni)]
+        DhatVdirec_Yhat_plot = [[axes[i].plot([], [], 'b:', linewidth=1.0)[0] for i in range(Ni)] for s in range(Ns)]
+        DhatV_plot = [axes[i].plot([], [], 'g*', label=r'$\hat{D}_\pi(V_s^i)$')[0] for i in range(Ni)]
+        cano_sect_plot = [axes[i].plot([], [], 'b', linewidth=1.0, label=r'$\mathbf{1}_a\bar{\mu}_a^{si}(V_s^i,\pi_a^{si})$')[0] for i in range(Ni)]
+        fig.legend(handles=[coneb_plot[0][0], cone_plot[0][0], cone_Y_plot[0][0], coneb_Y_plot[0][0], cone_apex_plot[0], value_plot[0], V_DVdirec_plot[0], DV_plot[0], V_DhatVdirec_plot[0], DhatV_plot[0], cano_sect_plot[0], onevec_plot[0]], loc=legend_loc, ncol=legend_ncol)
+        return cone_hyperp_plot, coneb_hyperp_plot, cone_plot, coneb_plot, cone_Y_plot, coneb_Y_plot, cone_apex_plot, coneb_apex_plot, value_plot, onevec_plot, V_DVdirec_plot, DVdirec_Y_plot, DV_plot, V_DhatVdirec_plot, DhatVdirec_Yhat_plot, DhatV_plot, cano_sect_plot
 
     def cone_update(self, k, data, plots):
         Ns, Ni, Na = self.Ns, self.Ni, self.Na
-        apex, apexb, vrange, apex_index, apexb_index, cone_hyperp, coneb_hyperp, cone_Y, coneb_Y, value, V_DVdirec, DVdirec_Y, DV = data
-        cone_hyperp_plot, coneb_hyperp_plot, cone_plot, coneb_plot, cone_Y_plot, coneb_Y_plot, cone_apex_plot, coneb_apex_plot, value_plot, onevec_plot, V_DVdirec_plot, DVdirec_Y_plot, DV_plot = plots
+        apex, apexb, vrange, apex_index, apexb_index, cone_hyperp, coneb_hyperp, cone_Y, coneb_Y, value, V_DVdirec, DVdirec_Y, DV, V_DhatVdirec, DhatVdirec_Yhat, DhatV = data
+        cone_hyperp_plot, coneb_hyperp_plot, cone_plot, coneb_plot, cone_Y_plot, coneb_Y_plot, cone_apex_plot, coneb_apex_plot, value_plot, onevec_plot, V_DVdirec_plot, DVdirec_Y_plot, DV_plot, V_DhatVdirec_plot, DhatVdirec_Yhat_plot, DhatV_plot, cano_sect_plot = plots
         [[cone_hyperp_plot[s][i].set_data(*np.array([cone_hyperp[s, k, i, :], vrange[1-s, i]])[[s, 1-s]]) for i in range(Ni)] for s in range(Ns)]
         [[[coneb_hyperp_plot[s][i][a].set_data(*np.array([coneb_hyperp[s, k, i, a, :], vrange[1-s, i]])[[s, 1-s]]) for a in range(Na)] for i in range(Ni)] for s in range(Ns)]
         [[cone_plot[s][i].set_data(*np.array([cone_hyperp[s, k, i, apex_index[k, 1-s, i]:], vrange[1-s, i, apex_index[k, 1-s, i]:]])[[s, 1-s]]) for i in range(Ni)] for s in range(Ns)]
@@ -93,13 +99,17 @@ class GamePlot:
         [V_DVdirec_plot[i].set_data(*V_DVdirec[:, k, :, i]) for i in range(Ni)]
         [[DVdirec_Y_plot[s][i].set_data(*DVdirec_Y[:, k, :, s, i]) for i in range(Ni)] for s in range(Ns)]
         [DV_plot[i].set_data(*DV[k, :, i, np.newaxis]) for i in range(Ni)]
+        [V_DhatVdirec_plot[i].set_data(*V_DhatVdirec[:, k, :, i]) for i in range(Ni)]
+        [[DhatVdirec_Yhat_plot[s][i].set_data(*DhatVdirec_Yhat[:, k, :, s, i]) for i in range(Ni)] for s in range(Ns)]
+        [DhatV_plot[i].set_data(*DhatV[k, :, i, np.newaxis]) for i in range(Ni)]
+        [cano_sect_plot[i].set_data(*np.array([DhatV[k, :, i], DV[k, :, i]]).swapaxes(0, 1)) for i in range(Ni)]
 
     def barrproblem_data(self, barr, policy, regret):
-        self.baxlim = (regret[barr[:, 0, 0, 0] < barr[0, 0, 0, 0]] if regret.shape[0] > 1 else regret).max(axis=(0, 2, 3))*1.1
+        dual_policy, dual_regret = barr/regret, barr/policy
+        self.baxlim = np.maximum(regret.max(axis=(0, 2, 3)), dual_regret.max(axis=(0, 2, 3)))*1.1
         barr_uni, barr_invindex = np.unique(barr, return_inverse=True, axis=0)
         brange = np.exp(np.linspace(np.log(barr_uni), np.log(self.baxlim[np.newaxis, :, np.newaxis, np.newaxis]), 100, axis=-1))
         barr_hyperb = np.array([-brange, barr_uni[..., np.newaxis]/brange])
-        dual_policy, dual_regret = barr/regret, barr/policy
         rect = np.array([[np.stack([policy[..., 0], policy[..., 0], -dual_regret[..., 1], -dual_regret[..., 1], policy[..., 0]], axis=-1),
                           np.stack([policy[..., 1], -dual_regret[..., 0], -dual_regret[..., 0], policy[..., 1], policy[..., 1]], axis=-1)],
                          [np.stack([-regret[..., 1], -regret[..., 1], dual_policy[..., 0], dual_policy[..., 0], -regret[..., 1]], axis=-1),
@@ -161,8 +171,7 @@ class GamePlot:
         unbiased_index, unbiased_invindex = barr.shape[0]-1-unbiased_index, unbiased_invindex[::-1]
         unbiased_policy = policy[unbiased_index]
         tanvec = tangent_vector(ustatic[unbiased_index], barr[unbiased_index],  unbiased_policy, unbiased_index.shape[0])
-        tanvec_sum = tanvec.sum(axis=(-1, -2))
-        return prange, hypesurf, rect, policy_bias, unbiased_policy, unbiased_invindex, tanvec, tanvec_sum
+        return prange, hypesurf, rect, policy_bias, unbiased_policy, unbiased_invindex, tanvec
 
     def kktcondition_plots(self, fig, axes, legend_loc, legend_ncol, plot_traj=True):
         Ns, Ni, Na = axes.shape[0], self.Ni, self.Na
@@ -174,20 +183,18 @@ class GamePlot:
         if plot_traj:
             [axes[s].plot(*self.policy_f[:, s, :, 0].swapaxes(0, 1), 'C7.', markersize=1.0) for s in range(Ns)]
             del self.policy_f
-        hypesurf_plot = [[axes[s].plot([], [], 'g', label=r'$\hat{\pi}_a^i=M_i(\pi_a^{i-})$')[0] for i in range(Ni)] for s in range(Ns)]
+        hypesurf_plot = [[axes[s].plot([], [], 'g', label=r'$\hat{\pi}_a^i=M(\mu_a^i)(\pi_a^{i-})$')[0] for i in range(Ni)] for s in range(Ns)]
         rect_plot = [axes[s].plot([], [], 'b:', linewidth=1.0)[0] for s in range(Ns)]
         policy_bias_plot = [axes[s].plot([], [], 'y^-', label=r'$\pi_a^i-\hat{\pi}_a^i$')[0] for s in range(Ns)]
         tanoffset_plot = [axes[s].plot([], [], 'k.', markersize=4.0, zorder=12)[0] for s in range(Ns)]
         tanvec_plot = [[[axes[s].quiver([], [], [], [], scale=1, width=0.004, color='r', zorder=10) for a in range(Na)] for i in range(Ni)] for s in range(Ns)]
-        tanvec_sum_plot = [axes[s].quiver([], [], [], [], scale=1, width=0.006, color='k', zorder=11) for s in range(Ns)]
         tanvec_legend = [axes[s].plot([], [], color='r', linestyle='', marker=r'$\longrightarrow$', markersize=15, label=r"$\mu_{a''}^k d\pi_{a'}^j/d\mu_{a''}^k$")[0] for s in range(Ns)]
-        tanvec_sum_legend = [axes[s].plot([], [], color='k', linestyle='', marker=r'$\longrightarrow$', markersize=15, label=r"$\mathbf{1}_{a''}^k(\mu_{a''}^k d\pi_{a'}^j/d\mu_{a''}^k)$")[0] for s in range(Ns)]
-        fig.legend(handles=[hypesurf_plot[0][0], policy_bias_plot[0], tanvec_legend[0], tanvec_sum_legend[0]], loc=legend_loc, ncol=legend_ncol)
-        return hypesurf_plot, rect_plot, policy_bias_plot, tanoffset_plot, tanvec_plot, tanvec_sum_plot
+        fig.legend(handles=[hypesurf_plot[0][0], policy_bias_plot[0], tanvec_legend[0]], loc=legend_loc, ncol=legend_ncol)
+        return hypesurf_plot, rect_plot, policy_bias_plot, tanoffset_plot, tanvec_plot
 
     def kktcondition_update(self, k, data, plots):
-        prange, hypesurf, rect, policy_bias, unbiased_policy, unbpol_invindex, tanvec, tanvec_sum = data
-        hypesurf_plot, rect_plot, policy_bias_plot, tanoffset_plot, tanvec_plot, tanvec_sum_plot = plots
+        prange, hypesurf, rect, policy_bias, unbiased_policy, unbpol_invindex, tanvec = data
+        hypesurf_plot, rect_plot, policy_bias_plot, tanoffset_plot, tanvec_plot = plots
         Ns, Ni, Na = len(hypesurf_plot), self.Ni, self.Na
         [[hypesurf_plot[s][i].set_data(*np.array([hypesurf[i, k, s, :], prange])[[i, 1-i]]) for i in range(Ni)] for s in range(Ns)]
         [rect_plot[s].set_data(*rect[:, k, s, :]) for s in range(Ns)]
@@ -195,8 +202,6 @@ class GamePlot:
         [tanoffset_plot[s].set_data(unbiased_policy[unbpol_invindex[k], s, :, 0, np.newaxis]) for s in range(Ns)]
         [[[tanvec_plot[s][i][a].set_offsets(unbiased_policy[unbpol_invindex[k], s, :, 0]) for a in range(Na)] for i in range(Ni)] for s in range(Ns)]
         [[[tanvec_plot[s][i][a].set_UVC(*tanvec[unbpol_invindex[k], s, :, 0, i, a]) for a in range(Na)] for i in range(Ni)] for s in range(Ns)]
-        [tanvec_sum_plot[s].set_offsets(unbiased_policy[unbpol_invindex[k], s, :, 0]) for s in range(Ns)]
-        [tanvec_sum_plot[s].set_UVC(*tanvec_sum[unbpol_invindex[k], s, :, 0]) for s in range(Ns)]
 
     def _curve_plot(self, ax, data, n, label):
         color = ["g", "r"][n]
@@ -246,7 +251,7 @@ class GamePlot:
         curveaxes = self.curve_plot(curvefig, item=[0, 1, 2])
         index_plot = [ax.plot([], [], 'k', linewidth=2.0)[0] for ax in curveaxes]
         curvelim = [ax.get_ylim() for ax in curveaxes]
-        cone_data_plots = self.cone_data(policy, value), self.cone_plots(plotfig, axes[:, 0], 'outside lower left', 2)
+        cone_data_plots = self.cone_data(policy, value), self.cone_plots(plotfig, axes[:, 0], 'outside lower left', 3)
         barrproblem_data_plots = self.barrproblem_data(barr, policy, regret), self.barrproblem_plots(plotfig, axes[:, [1, 2]], 'outside lower center', 3)
         kktcondition_data_plots = self.kktcondition_data(ustatic, barr, policy), self.kktcondition_plots(plotfig, axes[:, 3], 'outside lower right', 1)
         plt.savefig('fig/x.png')
@@ -254,23 +259,35 @@ class GamePlot:
         ani.save(f'fig/anim{self.nNn}.gif', fps=60, dpi=200, writer='ffmpeg')
 
     def graph(self):
-        ustatic = np.array([[[[1e-1, 0]], [[1, 9]]], [[[0, 9]], [[0, 0]]]])
-        barr = np.array([[[0.05, 0.37], [0.45, 0.74]], [[0.17, 0.5], [0.22, 0.73]]])
-        policy = (lambda p11, p12, p21, p22: np.array([[[p11, 1-p11], [p12, 1-p12]], [[p21, 1-p21], [p22, 1-p22]]]))(0.3, 0.3, 0.2, 0.3)
-        insec_policy = (lambda p11, p12, p21, p22: np.array([[[p11, 1-p11], [p12, 1-p12]], [[p21, 1-p21], [p22, 1-p22]]]))(0.605, 0.162, 0.396, 0.669)
-        regret = np.array([[[1, 2], [0.75, 1.85]]])
-        value = np.array([[1.3, 3], [2, 2]])
+        path_, format_ = 'fig', 'png'
+        Ns, Ni, Na = self.Ns, self.Ni, self.Na
+
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(6.4, 3.7))
-        cone_data_plots = self.cone_data(policy[np.newaxis, ...], value[np.newaxis, ...]), self.cone_plots(fig, axes, 'outside lower center', 5, plot_traj=False)
+        np.random.seed(25)
+        policy_ = np.random.dirichlet(np.ones(Na), size=(Ns, Ni))
+        value_ = np.random.rand(*(Ns, Ni))+np.array([np.ones(Ns)*0.3, np.ones(Ns)*1]).swapaxes(0, 1)
+        cone_data_plots = self.cone_data(policy_[np.newaxis, ...], value_[np.newaxis, ...]), self.cone_plots(fig, axes, 'outside lower center', 6, plot_traj=False)
         self.cone_update(0, *cone_data_plots)
-        plt.savefig('fig/cone.eps', dpi=300, format='eps')
+        plt.savefig(f'{path_}/cone.{format_}', dpi=300, format=format_)
+
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(6.4, 3.7))
-        barrproblem_data_plots = self.barrproblem_data(barr[np.newaxis, [0], ...], policy[np.newaxis, [0], :, :], regret[np.newaxis, ...]), self.barrproblem_plots(fig, axes[np.newaxis, :], 'outside lower center', 4, plot_traj=False)
+        np.random.seed(0)
+        policy_ = np.random.dirichlet(np.ones(Na), size=(Ns, Ni))
+        dual_policy_ = np.random.dirichlet(np.ones(Na), size=(Ns, Ni))
+        dual_policy_[:, 0, :] = np.random.rand(*(Ns, Na))
+        regret_ = np.random.rand(*(Ns, Ni, Na))
+        barrproblem_data_plots = self.barrproblem_data((dual_policy_*regret_)[np.newaxis, [0], ...], policy_[np.newaxis, [0], ...], regret_[np.newaxis, [0], ...]), self.barrproblem_plots(fig, axes[np.newaxis, :], 'outside lower center', 4, plot_traj=False)
         self.barrproblem_update(0, *barrproblem_data_plots)
-        plt.savefig('fig/barrproblem.eps', dpi=300, format='eps')
+        plt.savefig(f'{path_}/barrproblem.{format_}', dpi=300, format=format_)
+
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(6.4, 3.7))
-        kktcondition_data_plots = self.kktcondition_data(ustatic[np.newaxis, ...][[0, 0]][..., [0, 0], :], barr[np.newaxis, ...][[0, 0]], np.array([policy, insec_policy])), self.kktcondition_plots(fig, axes, 'outside lower center', 4, plot_traj=False)
+        ustatic_ = np.array([[[[1e-1, 0]], [[1, 9]]], [[[0, 9]], [[0, 0]]]])
+        barr_ = np.array([[[0.05, 0.37], [0.45, 0.74]], [[0.17, 0.5], [0.22, 0.73]]])
+        policy_ = (lambda p11, p12, p21, p22: np.array([[[p11, 1-p11], [p12, 1-p12]], [[p21, 1-p21], [p22, 1-p22]]]))(0.3, 0.3, 0.2, 0.3)
+        insec_policy_ = (lambda p11, p12, p21, p22: np.array([[[p11, 1-p11], [p12, 1-p12]], [[p21, 1-p21], [p22, 1-p22]]]))(0.605, 0.162, 0.396, 0.669)
+        kktcondition_data_plots = self.kktcondition_data(ustatic_[np.newaxis, ...][[0, 0]][..., [0, 0], :], barr_[np.newaxis, ...][[0, 0]], np.array([policy_, insec_policy_])), self.kktcondition_plots(fig, axes, 'outside lower center', 4, plot_traj=False)
         self.kktcondition_update(0, *kktcondition_data_plots)
-        plt.savefig('fig/kktcondition.eps', dpi=300, format='eps')
+        plt.savefig(f'{path_}/kktcondition.{format_}', dpi=300, format=format_)
+
         self.curve_plot(plt.figure(layout='compressed', figsize=(8, 4)))
-        plt.savefig('fig/iter_curve.eps', dpi=300, format='eps')
+        plt.savefig(f'{path_}/iter_curve.{format_}', dpi=300, format=format_)
