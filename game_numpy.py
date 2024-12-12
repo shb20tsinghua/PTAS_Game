@@ -1,5 +1,4 @@
 import numpy as np
-syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 def arr2str(arr, preci): return np.array2string(arr, separator=',', formatter={'all': lambda x: f'{x:.{preci}e}'}).replace('\n', '').replace(' ', '')
 
 
@@ -26,89 +25,90 @@ class Game:
         self.max_value = ua.max()/(1-gamma)
         self.record = []
 
-    def solve(self, policy, pdbias_TOL=1e-6, canosect_TOL=1e-5, resolu=1e-10, canosect_stepln=2e-1, singuavoi_stepln=2e-1, singuavoi_stepln_decay=0.9, projgrad_stepln=2e-4, dynaprogr_stepln=1e-1, maxnit=500000, maxsubnit=10000, verbose=0, record_file=None, preci=3, plots=False):
+    def solve(self, policy, canosect_TOL=1e-5, maxnit=500000, canosect_stepln=2e-1, singuavoi_stepln=2e-1, verbose=0, record_file=None, preci=3, plots=False):
         """
         Parameters:
         policy: Initial policy.
 
         Returns:
-        (cano_sect, policy, value): Resulting canonical section, policy, value function.
+        [cano_sect, policy, value]: Resulting canonical section, policy, value function.
         True/False: Whether the program successfully converges to a perfect equilibrium.
         nit: Number of iteration steps.
-        record_list=[cano_sect, policy_bias, regret_bias, projgrad, dp_res]: Resulting norm of canonical section, (primal-dual) policy bias, (primal-dual) regret bias, projected gradient, dynamic programming residual.
-        np.vstack(self.record): The ndarray recording every iteration step. (Empty if not recorded.)
+        record_list=[cano_sect, policy_bias, projgrad, dp_res]: Resulting norm of canonical section, (primal-dual) policy bias, projected gradient, dynamic programming residual.
+        np.vstack(self.record): The ndarray recording every iteration step. (None if not recorded.)
         """
+        init_barr, projgrad_stepln, dynaprogr_stepln, tangent_stepln, maxsubnit = 1e3, 2e-4, 1e-1, 2e-2, 10000
         self.Nn = policy.shape[0]
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
-        barr, value = policy, np.ones((Nn, Ns, Ni))*self.max_value
+        barr, value = policy*init_barr, np.ones((Nn, Ns, Ni))*self.max_value
         verbose = verbose if record_file else 0
         if verbose >= 1:
             open(record_file, 'w')
             with open(record_file, 'a') as fio:
                 nlen = (6+preci)*Nn*Ns+(Ns-1)*Nn+2*Nn+Nn+1
-                fio.writelines(f"|{'nit':^7}|{'canosetol':^{6+preci}}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'regret_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'singuavoi':^{6+preci}}|\n")
-        nit, singu_avoi, pre_projgrad, _canosect_TOL = 0, singuavoi_stepln, np.zeros((Nn, Ns, Ni, Na)), 1e-2
+                fio.writelines(f"|{'nit':^7}|{'canosetol':^{6+preci}}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'singuavoi':^{6+preci}}|\n")
+        nit, pre_projgrad, _canosect_TOL, _singuavoi = 0, 0, 1e-2, 1.0
         while True:
-            subnit, adam_m, adam_v = 0, np.zeros((Nn, Ns, Ni, Na)), np.zeros((Nn, Ns, Ni, Na))
+            subnit, adam_m, adam_v = 0, 0, 0
             while True:
-                projgrad, policy_bias, regret_bias, regret, dp_res, piU_jac, cano_sect = self.onto_equilbundl(barr, policy, value)
-                record_list = [np.linalg.norm(item, np.inf, axis=-1).max(axis=-1) for item in [cano_sect, policy_bias, regret_bias, projgrad]]+[dp_res.max(axis=1)-dp_res.min(axis=1)]
-                cano_sect_norm, policy_biasnorm, regret_biasnorm, projgrad_norm, value_resangle = record_list
+                projgrad, policy_bias, regret, dp_res, comat11, cano_sect = self.onto_equilbundl(barr, policy, value)
+                record_list = [np.linalg.norm(item, np.inf, axis=-1).max(axis=-1) for item in [cano_sect, policy_bias, projgrad]]+[dp_res.max(axis=1)-dp_res.min(axis=1)]
+                cano_sect_norm, policy_biasnorm, projgrad_norm, value_resangle = record_list
+                def unbiased(tol): return (policy_biasnorm < tol).all() and (value_resangle < tol).all()
 
                 if plots and Ns == 2 and Ni == 2 and Na == 2:
                     self.record.append(np.block([barr.reshape((Nn, Ns, Ni*Na)), policy.reshape((Nn, Ns, Ni*Na)), regret.reshape((Nn, Ns, Ni*Na)), value]).flatten())
                 if verbose >= 2:
-                    with open(record_file, 'a') as fio:
-                        fio.writelines(f"|{subnit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item, preci) for item in record_list])}|{singu_avoi:^.{preci}e}|\n")
+                    print(f"|{subnit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item, preci) for item in record_list])}|{_singuavoi:^.{preci}e}|")
 
                 if (nit := nit+1) > maxnit:
                     return [cano_sect, policy, value], False, nit, record_list, np.vstack(self.record) if self.record else None
-                elif (subnit := subnit+1) > maxsubnit or np.abs(pre_projgrad-projgrad).max() < 1e-12:
-                    if (policy_biasnorm < pdbias_TOL).all() and (regret_biasnorm < pdbias_TOL).all() and (value_resangle < resolu).all():
-                        singu_avoi *= singuavoi_stepln_decay
+                elif (subnit := subnit+1) > maxsubnit or unbiased(1e-9) or np.abs(pre_projgrad-(pre_projgrad := projgrad)).max() < 1e-12:
+                    if unbiased(3e-8):
+                        _singuavoi *= 0.2
                         if (cano_sect_norm < _canosect_TOL).all():
                             if _canosect_TOL < canosect_TOL:
                                 return [cano_sect, policy, value], True, nit, record_list, np.vstack(self.record) if self.record else None
                             else:
-                                _canosect_TOL *= 0.9
+                                _canosect_TOL *= 1-canosect_stepln
                     else:
-                        singu_avoi += singuavoi_stepln
-                        barr, policy, value, piU_jac, cano_sect = bpv_bkp
+                        if not unbiased(1e-6):
+                            barr, policy, value, regret, comat11 = bpv_bkp
+                        _singuavoi += 1
                     break
 
-                pre_projgrad = projgrad
-                adam_m, adam_v = (lambda exp_projgrad: (adam_m+1e-1*(exp_projgrad-adam_m), adam_v+1e-3*(exp_projgrad**2-adam_v)))(projgrad/policy)
+                adam_m += 1e-1*(projgrad-adam_m)
+                adam_v += 1e-3*(projgrad**2-adam_v)
                 dpolicy = projgrad_stepln*adam_m/(adam_v+4*np.finfo(float).eps)**0.5
-                policy = (lambda vec: vec/vec.sum(axis=-1, keepdims=True))(np.exp(np.log(policy)-np.where(((policy_biasnorm < resolu) & (regret_biasnorm < resolu))[..., np.newaxis, np.newaxis], 0, dpolicy)))
+                policy = (lambda vec: vec/vec.sum(axis=-1, keepdims=True))(np.exp(np.log(policy)-np.where((policy_biasnorm < 1e-10)[..., np.newaxis, np.newaxis], 0, dpolicy)))
                 value += dynaprogr_stepln*dp_res
 
-            bpv_bkp = barr.copy(), policy.copy(), value.copy(), piU_jac.copy(), cano_sect.copy()
+            bpv_bkp = barr.copy(), policy.copy(), value.copy(), regret.copy(), comat11.copy()
+            diff = self.along_equilbundl(policy, regret, comat11)
+            diff_ln = np.linalg.norm(policy[..., np.newaxis]*diff.sum(axis=-1), axis=-2).max(axis=-2)
+            _canosect_stepln = (tangent_stepln/diff_ln).clip(max=canosect_stepln)/(1+_singuavoi)
+            barr, dbarr = (lambda barr_next: (barr_next, 1-barr_next/barr))(((1-_canosect_stepln)[..., np.newaxis]*barr+_singuavoi*singuavoi_stepln*policy).clip(min=0.2*_canosect_TOL))
+            policy = (lambda vec: vec/vec.sum(axis=-1, keepdims=True))(np.exp(np.log(policy)-np.einsum('nsiakl,nskl->nsia', diff, dbarr)))
             if verbose >= 1:
                 with open(record_file, 'a') as fio:
-                    fio.writelines(f"|{nit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item, preci) for item in record_list])}|{singu_avoi:^.{preci}e}|\n")
-
-            diff = self.along_equilbundl(barr, policy, piU_jac)
-            barr, dbarr = (lambda barr_next: (barr_next, 1-barr_next/barr))(((1-canosect_stepln)*barr+singu_avoi*policy).clip(min=_canosect_TOL*0.2))
-            policy = (lambda vec: vec/vec.sum(axis=-1, keepdims=True))(np.exp(np.log(policy)-np.einsum('nsiakl,nskl->nsia', diff, dbarr)))
+                    fio.writelines(f"|{nit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item, preci) for item in record_list])}|{_singuavoi:^.{preci}e}|\n")
 
     def onto_equilbundl(self, barr, policy, value):
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
         piU_jac, piU_vec = self.expected_util(policy, value)
         _piU_vec_max, _cano_sect = (lambda _piU_vec_max: (_piU_vec_max, _piU_vec_max[..., np.newaxis]-piU_vec))(piU_vec.max(axis=-1))
-        value_static = self._brentq(lambda v: (barr/(v[..., np.newaxis]+_cano_sect)).sum(axis=-1)-1, np.zeros((Nn, Ns, Ni)), np.full((Nn, Ns, Ni), 1e3))+_piU_vec_max
+        value_static = self._brentq(lambda v: (barr/(v[..., np.newaxis]+_cano_sect)).sum(axis=-1)-1, np.zeros((Nn, Ns, Ni)), Na*barr.max(axis=-1))+_piU_vec_max
         regret = value_static[..., np.newaxis]-piU_vec
-        policy_bias, regret_bias = policy-barr/regret, regret-barr/policy
-        projgrad = (lambda grad: grad-(grad.sum(axis=-1)/Na)[..., np.newaxis])(regret_bias-np.einsum('nsab,nsa->nsb', piU_jac, policy_bias.reshape((Nn, Ns, Ni*Na))).reshape((Nn, Ns, Ni, Na)))
+        policy_bias = policy-barr/regret
+        comat11 = np.eye(Ni*Na)-piU_jac*policy.reshape((Nn, Ns, 1, Ni*Na))/regret.reshape((Nn, Ns, Ni*Na, 1))
+        projgrad = (lambda grad: grad-grad.sum(axis=-1, keepdims=True)*policy)(np.einsum('nsab,nsa->nsb', comat11, (policy_bias*regret).reshape((Nn, Ns, Ni*Na))).reshape((Nn, Ns, Ni, Na)))
         dp_res = value_static-np.einsum('nsia,nsia->nsi', policy, regret)-value
-        return projgrad, policy_bias, regret_bias, regret, dp_res, piU_jac, policy*_cano_sect
+        return projgrad, policy_bias, regret, dp_res, comat11, policy*_cano_sect
 
-    def along_equilbundl(self, barr, policy, piU_jac):
+    def along_equilbundl(self, policy, regret, comat11):
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
-        _policy = policy.reshape((Nn, Ns, Ni*Na))
-        policy_barr = (policy/barr).reshape((Nn, Ns, Ni*Na))
-        comat11 = np.eye(Ni*Na)-piU_jac*_policy[:, :, np.newaxis, :]*policy_barr[:, :, :, np.newaxis]
-        comat21 = np.kron(np.eye(Ni), np.ones(Na))[np.newaxis, ...]*_policy[:, :, np.newaxis, :]
-        comat12 = np.kron(np.eye(Ni), np.ones((Na, 1)))[np.newaxis, ...]*policy_barr[:, :, :, np.newaxis]
+        comat21 = np.kron(np.eye(Ni), np.ones((1, Na)))*policy.reshape((Nn, Ns, 1, Ni*Na))
+        comat12 = np.kron(np.eye(Ni), np.ones((Na, 1)))/regret.reshape((Nn, Ns, Ni*Na, 1))
         comat = np.block([[comat11, comat12], [comat21, np.zeros((Nn, Ns, Ni, Ni))]])
         diff = np.linalg.solve(comat, np.vstack([np.eye(Ni*Na), np.zeros((Ni, Ni*Na))])[np.newaxis, np.newaxis, ...])[..., :Ni*Na, :].reshape((Nn, Ns, Ni, Na, Ni, Na))
         return diff
@@ -128,6 +128,7 @@ class Game:
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
         gamma, ua, Ta = self.model
         ustatic = ua[..., np.newaxis, :]+gamma*np.dot(Ta, value+self.max_value)
+        syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
         piU_jac = (lambda _policy: np.block([[np.einsum(f"{syms[:Ni]}sn{''.join([f',ns{k}' for k in syms[:Ni].replace(syms[i], '').replace(syms[j], '')])}->ns{syms[i]}{syms[j]}", ustatic[..., i], *_policy[(np.arange(Ni) != i) & (np.arange(Ni) != j)]) if j != i else np.zeros((Nn, Ns, Na, Na)) for j in range(Ni)] for i in range(Ni)]))(policy.swapaxes(1, 2).swapaxes(0, 1))
         piU_vec = np.einsum('nsab,nsb->nsa', piU_jac, policy.reshape((Nn, Ns, Ni*Na))).reshape((Nn, Ns, Ni, Na))/(Ni-1)
         return piU_jac, piU_vec
