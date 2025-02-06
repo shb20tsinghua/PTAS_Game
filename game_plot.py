@@ -104,10 +104,9 @@ class GamePlot:
         [cano_sect_plot[i].set_data(*np.array([DhatV[k, :, i], DV[k, :, i]]).swapaxes(0, 1)) for i in range(Ni)]
 
     def barrproblem_data(self, barr, policy, regret):
-        init_barr = barr[0].sum(axis=-1)[0, 0]
-        barr, regret = barr/init_barr, regret/init_barr
         dual_policy, dual_regret = barr/regret, barr/policy
         self.baxlim = np.maximum(regret.max(axis=(0, 2, 3)), dual_regret.max(axis=(0, 2, 3)))*1.1
+        self.baxlim = np.ones(self.Ns)*1.1
         barr_uni, barr_invindex = np.unique(barr, return_inverse=True, axis=0)
         brange = np.exp(np.linspace(np.log(barr_uni), np.log(self.baxlim[np.newaxis, :, np.newaxis, np.newaxis]), 100, axis=-1))
         barr_hyperb = np.array([-brange, barr_uni[..., np.newaxis]/brange])
