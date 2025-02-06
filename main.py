@@ -7,8 +7,10 @@ from game_plot import GamePlot
 from multiprocessing import Pool
 np.seterr(divide='ignore', invalid='ignore')
 fresult, frecord = 'data/result.log', 'data/record.log'
-preci = 3
+print_preci = 3
 hyper_paras = np.array([
+    [1000000, 2e-1, -1],
+    [1000000, 1e-1, -1],
     [1000000, 2e-1, 2e-1],
     [1000000, 2e-1, 2e-0],
     [1000000, 2e-1, 2e-2],
@@ -22,7 +24,7 @@ def test(seed, test_static=False, verbose=0, plots=True):
     """
         Parameters:
         test_static: Whether to treat the input dynamic game as a set of static games.
-        varbose: If 0, outputs nothing, if 1, outputs the outer iteration level, if 2, outputs both two iteration levels.
+        varbose: If 0, prints nothing, if 1, prints the outer iteration level, if 2, prints both two iteration levels.
         plots: Whether to record every iteration step in a list, which can be used to animate the line search process later. (Only recorded for 2-state 2-player 2-action dynamic games.)
     """
     global gamma
@@ -35,10 +37,11 @@ def test(seed, test_static=False, verbose=0, plots=True):
         Ta = np.kron(np.ones((Na,)*Ni)[..., np.newaxis, np.newaxis], np.eye(Ns))
     for i in range(len(hyper_paras)):
         result, success, nit, record, record_csv = Game(Ns, Ni, Na, gamma, ua, Ta).solve(
-            init_policy, canosect_TOL=1e-5, maxnit=hyper_paras[i, 0], canosect_stepln=hyper_paras[i, 1],
-            verbose=verbose, record_file=frecord, preci=preci, plots=plots)
+            init_policy, canosect_TOL=1e-5, maxnit=hyper_paras[i, 0],
+            canosect_stepln=hyper_paras[i, 1], singuavoi_stepln=hyper_paras[i, 2],
+            verbose=verbose, record_file=frecord, print_preci=print_preci, plots=plots)
         with open(fresult, 'a') as fio:
-            fio.writelines(f"|{seed:^4d}|{repr(success):7}|{nit:^7d}|{'|'.join([arr2str(item, preci) for item in record])}|{i:^10d}|\n")
+            fio.writelines(f"|{seed:^4d}|{repr(success):7}|{nit:^7d}|{'|'.join([arr2str(item, print_preci) for item in record])}|{i:^10d}|\n")
         if success:
             break
     if record_csv is not None:
@@ -50,22 +53,22 @@ def plottest(seed):
     np.random.seed(seed)
     ua, Ta = np.random.rand(*((Na,)*Ni+(Ns, Ni)))-0.5, np.random.dirichlet(np.ones(Ns), size=(Na,)*Ni+(Ns,))
     for nNn in range(Nn):
-        gp = GamePlot(Ns, Ni, Na, gamma, ua, Ta, Nn, nNn, iter_per_frame=20000)
+        gp = GamePlot(Ns, Ni, Na, gamma, ua, Ta, Nn, nNn, iter_per_frame=500)
         gp.anim()
-        # gp.graph()
+        gp.graph()
 
 
 gamma = 0.5
-Nn, Ns, Ni, Na = 1, 1, 2, 50
+Nn, Ns, Ni, Na = 1, 2, 2, 2
 if __name__ == '__main__':
     print(f"Check results at {fresult} and iteration process at {frecord}.")
     open(fresult, 'w')
     with open(fresult, 'a') as fio:
-        nlen = (6+preci)*Nn*Ns+(Ns-1)*Nn+2*Nn+Nn+1
-        fio.writelines(f"|{'seed':^4}|{'success':^7}|{'nit':^7}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'hyper_para':^10}|\n")
+        nlen = (6+print_preci)*Nn*Ns+(Ns-1)*Nn+2*Nn+Nn+1
+        fio.writelines(f"|{'seed':^4}|{'success':^7}|{'nit':^7}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+print_preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'hyper_para':^10}|\n")
     if not (parallel_test := False):
-        seed = 0
-        plots = False
+        seed = 1
+        plots = True
         test(seed, test_static=False, verbose=1, plots=plots)
         if plots and Ns == 2 and Ni == 2 and Na == 2:
             plottest(seed)
