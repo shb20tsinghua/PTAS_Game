@@ -4,7 +4,7 @@ def arr2str(arr, preci): return np.array2string(arr, separator=',', formatter={'
 
 class Game:
     """
-    Approximates perfect equilibria of a given dynamic game.
+    Approximating perfect equilibria of a given dynamic game.
 
     References:
     H. Sun, C. Xia, J. Tan, B. Yuan, X. Wang, and B. Liang, Geometric Structure and Polynomial-time Algorithm of Game Equilibria, 2024, https://arxiv.org/abs/2401.00747.
@@ -25,10 +25,11 @@ class Game:
         self.max_value = ua.max()/(1-gamma)
         self.record = []
 
-    def solve(self, policy, canosect_TOL=1e-5, maxnit=500000, canosect_stepln=2e-1, singuavoi_stepln=2e-1, verbose=0, record_file=None, preci=3, plots=False):
+    def solve(self, policy, canosect_TOL=1e-5, maxnit=500000, canosect_stepln=2e-1, singuavoi_stepln=-1, verbose=0, record_file=None, print_preci=3, plots=False):
         """
         Parameters:
         policy: Initial policy.
+        canosect_TOL: The tolerance of canonical section, which is equivalently the tolerance of epsilon in epsilon-equilibrium.
 
         Returns:
         [cano_sect, policy, value]: Resulting canonical section, policy, value function.
@@ -45,8 +46,8 @@ class Game:
         if verbose >= 1:
             open(record_file, 'w')
             with open(record_file, 'a') as fio:
-                nlen = (6+preci)*Nn*Ns+(Ns-1)*Nn+2*Nn+Nn+1
-                fio.writelines(f"|{'nit':^7}|{'canosetol':^{6+preci}}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'singuavoi':^{6+preci}}|\n")
+                nlen = (6+print_preci)*Nn*Ns+(Ns-1)*Nn+2*Nn+Nn+1
+                fio.writelines(f"|{'nit':^7}|{'canosetol':^{6+print_preci}}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+print_preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'singuavoi':^{6+print_preci}}|\n")
         nit, pre_projgrad, _canosect_TOL, _singuavoi = 0, 0, 1e-2, 1.0
         while True:
             subnit, adam_m, adam_v = 0, 0, 0
@@ -59,7 +60,7 @@ class Game:
                 if plots and Ns == 2 and Ni == 2 and Na == 2:
                     self.record.append(np.block([barr.reshape((Nn, Ns, Ni*Na)), policy.reshape((Nn, Ns, Ni*Na)), regret.reshape((Nn, Ns, Ni*Na)), value]).flatten())
                 if verbose >= 2:
-                    print(f"|{subnit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item, preci) for item in record_list])}|{_singuavoi:^.{preci}e}|")
+                    print(f"|{subnit:^7d}|{_canosect_TOL:^.{print_preci}e}|{'|'.join([arr2str(item, print_preci) for item in record_list])}|{_singuavoi:^.{print_preci}e}|")
 
                 if (nit := nit+1) > maxnit:
                     return [cano_sect, policy, value], False, nit, record_list, np.vstack(self.record) if self.record else None
@@ -87,11 +88,11 @@ class Game:
             diff = self.along_equilbundl(policy, regret, comat11)
             diff_ln = np.linalg.norm(policy[..., np.newaxis]*diff.sum(axis=-1), axis=-2).max(axis=-2)
             _canosect_stepln = (tangent_stepln/diff_ln).clip(max=canosect_stepln)/(1+_singuavoi)
-            barr, dbarr = (lambda barr_next: (barr_next, 1-barr_next/barr))(((1-_canosect_stepln)[..., np.newaxis]*barr+_singuavoi*singuavoi_stepln*policy).clip(min=0.2*_canosect_TOL))
+            barr, dbarr = (lambda barr_next: (barr_next, 1-barr_next/barr))(((1-_canosect_stepln)[..., np.newaxis]*barr+_singuavoi*(singuavoi_stepln if singuavoi_stepln > 0 else cano_sect.sum(axis=-1).max())*policy).clip(min=0.2*_canosect_TOL))
             policy = (lambda vec: vec/vec.sum(axis=-1, keepdims=True))(np.exp(np.log(policy)-np.einsum('nsiakl,nskl->nsia', diff, dbarr)))
             if verbose >= 1:
                 with open(record_file, 'a') as fio:
-                    fio.writelines(f"|{nit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item, preci) for item in record_list])}|{_singuavoi:^.{preci}e}|\n")
+                    fio.writelines(f"|{nit:^7d}|{_canosect_TOL:^.{print_preci}e}|{'|'.join([arr2str(item, print_preci) for item in record_list])}|{_singuavoi:^.{print_preci}e}|\n")
 
     def onto_equilbundl(self, barr, policy, value):
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
