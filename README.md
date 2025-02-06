@@ -1,14 +1,8 @@
 # PTAS_Game
 
-Animated line search process of the 2-state 2-player 2-action dynamic game instance generated with random seed 1.
-The parallel line search of 6 initial policies find all the 4 perfect equilibria of this dynamic game.
+This repository hosts the attached code and animation of this paper titled "Geometric Structure and Polynomial-time Algorithm of Game Equilibria" at https://arxiv.org/abs/2401.00747.
 
-The jumping in the barrier parameter at around 40000th iteration is triggered by singular avoidance, and this singular point is illustrated in the 4th animation, where the line search process cannot proceed without avoiding it.
+The below GIF is the animated line search process of the 2-state 2-player 2-action dynamic game instance generated with random seed 1, which corresponds to Fig.5 in the paper. The animation shows how the algorithm approximates a perfect equilibrium and avoids singular points in the process, where descriptions of the animation can be found in the paper.
 
 ![](fig/anim0.gif)
-![](fig/anim1.gif)
-![](fig/anim2.gif)
-![](fig/anim3.gif)
-![](fig/anim4.gif)
-![](fig/anim5.gif)
 
