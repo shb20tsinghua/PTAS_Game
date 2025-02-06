@@ -5,14 +5,13 @@ syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 
 class GamePlot:
-
     def __init__(self, Ns, Ni, Na, gamma, ua, Ta, Nn, nNn, iter_per_frame):
         self.nNn, self.Ns, self.Ni, self.Na, self.gamma, self.ua, self.Ta = nNn, Ns, Ni, Na, gamma, ua, Ta
         record = np.loadtxt('data/record.csv', delimiter=',')
         num = record.shape[0]
         frames = np.arange(num)[::iter_per_frame]
         frame_num = frames.shape[0]
-        print(num, frame_num)
+        print(f"{num}/{iter_per_frame}={frame_num}")
         barr_f, policy_f, regret_f, value_f = (lambda rec: (rec[:, :, :Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, Ni*Na:2*Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, 2*Ni*Na:3*Ni*Na].reshape((num, Ns, Ni, Na)), rec[:, :, -Ni:]))(record.reshape((num, Nn, Ns, Ni+3*Ni*Na))[:, nNn, ...])
         self.curve_plot_data = self.curve_data(barr_f, policy_f, regret_f, value_f)
         self.barr, self.policy, self.regret, self.value = barr_f[frames], policy_f[frames], regret_f[frames], value_f[frames]
@@ -105,6 +104,8 @@ class GamePlot:
         [cano_sect_plot[i].set_data(*np.array([DhatV[k, :, i], DV[k, :, i]]).swapaxes(0, 1)) for i in range(Ni)]
 
     def barrproblem_data(self, barr, policy, regret):
+        init_barr = barr[0].sum(axis=-1)[0, 0]
+        barr, regret = barr/init_barr, regret/init_barr
         dual_policy, dual_regret = barr/regret, barr/policy
         self.baxlim = np.maximum(regret.max(axis=(0, 2, 3)), dual_regret.max(axis=(0, 2, 3)))*1.1
         barr_uni, barr_invindex = np.unique(barr, return_inverse=True, axis=0)
@@ -218,14 +219,14 @@ class GamePlot:
         dual_policy, dual_regret = barr/regret, barr/policy
         policy_bias, regret_bias = policy-dual_policy, regret-dual_regret
         policy_bias_norm, regret_bias_norm = norm(policy_bias, np.inf, axis=-1).max(axis=(-1, -2)), norm(regret_bias, np.inf, axis=-1).max(axis=(-1, -2))
-        barr_norm, cano_sect = barr.max(axis=(1, 2, 3)), norm(policy*((lambda piU_vec: piU_vec.max(axis=-1)[..., np.newaxis]-piU_vec)(value[..., np.newaxis]-resb)), np.inf, axis=-1).max(axis=(1, 2))
+        barr_norm, cano_sect = np.log(barr).max(axis=(1, 2, 3)), norm(policy*((lambda piU_vec: piU_vec.max(axis=-1)[..., np.newaxis]-piU_vec)(value[..., np.newaxis]-resb)), np.inf, axis=-1).max(axis=(1, 2))
         data = [[res_norm, res_direc], [policy_bias_norm, regret_bias_norm], [barr_norm, cano_sect]]
         return data
 
     def curve_plot(self, fig, item=[0, 1, 2]):
         label = [[r'$V_s^i-D_\pi(V_s^i)$', r'$\tan\measuredangle (V_s^i$''\n'r'$-D_\pi(V_s^i),\mathbf{1}_s^i)$'],
                  [r'$\pi_a^{si}-\hat{\pi}_a^{si}$', r'$r_a^{si}-\hat{r}_a^{si}$'],
-                 [r'$\mu_a^{si}$', r'$\bar{\mu}_a^{si}$']]
+                 [r'$\ln\mu_a^{si}$', r'$\bar{\mu}_a^{si}$']]
         axes = fig.subplots(len(item), 1) if len(item) > 1 else [fig.subplots(len(item), 1)]
         [(axes[m].sharex(axes[-1]), axes[m].tick_params('x', labelbottom=False)) for m in range(len(item)-1)]
         axes[-1].set(xlabel='Iterations')
@@ -238,7 +239,7 @@ class GamePlot:
             self.barrproblem_update(k, *barrproblem_data_plots)
             self.kktcondition_update(k, *kktcondition_data_plots)
             [index_plot[m].set_data([frames[k], frames[k]], curvelim[m]) for m in range(3)]
-            print(k)
+            print(f'{k}/{self.frame_num}')
         barr, policy, regret, value = self.barr, self.policy, self.regret, self.value
         ustatic = self.ua[np.newaxis, ...]+self.gamma*np.moveaxis(np.dot(self.Ta, value), -2, 0)
         frames, frame_num = self.frames, self.frame_num
@@ -259,7 +260,7 @@ class GamePlot:
         ani.save(f'fig/anim{self.nNn}.gif', fps=60, dpi=200, writer='ffmpeg')
 
     def graph(self):
-        path_, format_ = 'fig', 'png'
+        path_, format_ = 'fig', 'eps'
         Ns, Ni, Na = self.Ns, self.Ni, self.Na
 
         fig, axes = plt.subplots(1, 2, layout='compressed', figsize=(6.4, 3.7))
