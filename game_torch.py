@@ -6,7 +6,7 @@ def arr2str(arr): return str(arr)[7:-1].replace('\n', '').replace(' ', '')
 
 class Game:
     """
-    Approximates perfect equilibria of a given dynamic game.
+    Approximating perfect equilibria of a given dynamic game.
 
     References:
     H. Sun, C. Xia, J. Tan, B. Yuan, X. Wang, and B. Liang, Geometric Structure and Polynomial-time Algorithm of Game Equilibria, 2024, https://arxiv.org/abs/2401.00747.
@@ -27,10 +27,11 @@ class Game:
         self.max_value = ua.max()/(1-gamma)
         self.record = []
 
-    def solve(self, policy, canosect_TOL=1e-5, maxnit=500000, canosect_stepln=2e-1, singuavoi_stepln=2e-1, verbose=0, record_file=None, preci=3, plots=False):
+    def solve(self, policy, canosect_TOL=1e-5, maxnit=500000, canosect_stepln=2e-1, singuavoi_stepln=-1, verbose=0, record_file=None, print_preci=3, plots=False):
         """
         Parameters:
         policy: Initial policy.
+        canosect_TOL: The tolerance of canonical section, which is equivalently the tolerance of epsilon in epsilon-equilibrium.
 
         Returns:
         [cano_sect, policy, value]: Resulting canonical section, policy, value function.
@@ -41,7 +42,7 @@ class Game:
         """
         init_barr, projgrad_stepln, dynaprogr_stepln, tangent_stepln, maxsubnit = 1e3, 2e-4, 1e-1, 2e-2, 10000
         policy = torch.from_numpy(policy).to(torch.get_default_device())
-        torch.set_printoptions(precision=preci, sci_mode=True)
+        torch.set_printoptions(precision=print_preci, sci_mode=True)
         self.Nn = policy.shape[0]
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
         barr, value = policy*init_barr, torch.ones((Nn, Ns, Ni))*self.max_value
@@ -49,8 +50,8 @@ class Game:
         if verbose >= 1:
             open(record_file, 'w')
             with open(record_file, 'a') as fio:
-                nlen = (6+preci)*Nn*Ns+(Ns-1)*Nn+2*Nn+Nn+1
-                fio.writelines(f"|{'nit':^7}|{'canosetol':^{6+preci}}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'singuavoi':^{6+preci}}|\n")
+                nlen = (6+print_preci)*Nn*Ns+(Ns-1)*Nn+2*Nn+Nn+1
+                fio.writelines(f"|{'nit':^7}|{'canosetol':^{6+print_preci}}|{'cano_sect':^{nlen}}|{'policy_bias':^{nlen}}|{'projgrad':^{nlen}}|{'dp_res':^{(6+print_preci)*Nn*Ni+(Ni-1)*Nn+2*Nn+Nn+1}}|{'singuavoi':^{6+print_preci}}|\n")
         nit, pre_projgrad, _canosect_TOL, _singuavoi = 0, 0, 1e-2, 1.0
         while True:
             subnit, adam_m, adam_v = 0, 0, 0
@@ -63,7 +64,7 @@ class Game:
                 if plots and Ns == 2 and Ni == 2 and Na == 2:
                     self.record.append(torch.cat([barr.reshape((Nn, Ns, Ni*Na)), policy.reshape((Nn, Ns, Ni*Na)), regret.reshape((Nn, Ns, Ni*Na)), value], dim=-1).flatten())
                 if verbose >= 2:
-                    print(f"|{subnit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item) for item in record_list])}|{_singuavoi:^.{preci}e}|")
+                    print(f"|{subnit:^7d}|{_canosect_TOL:^.{print_preci}e}|{'|'.join([arr2str(item) for item in record_list])}|{_singuavoi:^.{print_preci}e}|")
 
                 if (nit := nit+1) > maxnit:
                     return [item.cpu().numpy() for item in [cano_sect, policy, value]], False, nit, [item.cpu().numpy() for item in record_list], torch.vstack(self.record).cpu().numpy() if self.record else None
@@ -91,11 +92,11 @@ class Game:
             diff = self.along_equilbundl(policy, regret, comat11)
             diff_ln = torch.linalg.norm(policy[..., None]*diff.sum(dim=-1), dim=-2).max(dim=-2).values
             _canosect_stepln = (tangent_stepln/diff_ln).clip(max=canosect_stepln)/(1+_singuavoi)
-            barr, dbarr = (lambda barr_next: (barr_next, 1-barr_next/barr))(((1-_canosect_stepln)[..., None]*barr+_singuavoi*singuavoi_stepln*policy).clip(min=_canosect_TOL*0.2))
+            barr, dbarr = (lambda barr_next: (barr_next, 1-barr_next/barr))(((1-_canosect_stepln)[..., None]*barr+_singuavoi*(singuavoi_stepln if singuavoi_stepln > 0 else cano_sect.sum(axis=-1).max())*policy).clip(min=_canosect_TOL*0.2))
             policy = (lambda vec: vec/vec.sum(dim=-1, keepdims=True))(torch.exp(torch.log(policy)-torch.einsum('nsiakl,nskl->nsia', diff, dbarr)))
             if verbose >= 1:
                 with open(record_file, 'a') as fio:
-                    fio.writelines(f"|{nit:^7d}|{_canosect_TOL:^.{preci}e}|{'|'.join([arr2str(item) for item in record_list])}|{_singuavoi:^.{preci}e}|\n")
+                    fio.writelines(f"|{nit:^7d}|{_canosect_TOL:^.{print_preci}e}|{'|'.join([arr2str(item) for item in record_list])}|{_singuavoi:^.{print_preci}e}|\n")
 
     def onto_equilbundl(self, barr, policy, value):
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
@@ -129,10 +130,10 @@ class Game:
 
             The method also applies to model-free cases, where piU_jac and piU_vec are estimated from samples as an agent interacts with a game instance.
         """
-        syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
         Nn, Ns, Ni, Na = self.Nn, self.Ns, self.Ni, self.Na
         gamma, ua, Ta = self.model
         ustatic = ua[..., None, :]+gamma*torch.tensordot(Ta, value+self.max_value, dims=([-1], [-2]))
+        syms = 'abcdefghjklmopqrtuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
         piU_jac = (lambda _policy: torch.cat([torch.cat([torch.einsum(f"{syms[:Ni]}sn{''.join([f',ns{k}' for k in syms[:Ni].replace(syms[i], '').replace(syms[j], '')])}->ns{syms[i]}{syms[j]}", ustatic[..., i], *_policy[(torch.arange(Ni) != i) & (torch.arange(Ni) != j)]) if j != i else torch.zeros((Nn, Ns, Na, Na)) for j in range(Ni)], dim=-1) for i in range(Ni)], dim=-2))(policy.swapaxes(1, 2).swapaxes(0, 1))
         piU_vec = torch.einsum('nsab,nsb->nsa', piU_jac, policy.reshape((Nn, Ns, Ni*Na))).reshape((Nn, Ns, Ni, Na))/(Ni-1)
         return piU_jac, piU_vec
